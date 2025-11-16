@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>词云图生成器</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --accent-color: #ec4899;
+            --text-dark: #1f2937;
+            --text-light: #6b7280;
+            --bg-light: #f9fafb;
+            --bg-white: #ffffff;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1), 0 6px 10px rgba(0, 0, 0, 0.08);
+            --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.15);
+            --radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text-dark);
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            transform: rotate(45deg);
+        }
+        
+        .header h1 {
+            font-size: 2.8em;
+            margin-bottom: 15px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .input-section {
+            margin-bottom: 40px;
+        }
+        
+        .section-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            margin-bottom: 25px;
+            color: var(--text-dark);
+            position: relative;
+            padding-left: 15px;
+        }
+        
+        .section-title::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 5px;
+            height: 25px;
+            background: linear-gradient(to bottom, var(--primary-color), var(--secondary-color));
+            border-radius: 3px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: var(--text-dark);
+            font-size: 1.05em;
+        }
+        
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: var(--transition);
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-white);
+        }
+        
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 25px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .btn-generate {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff3838 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 16px;
+            font-size: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
+            position: relative;
+            overflow: hidden;
+            display: block;
+            margin: 20px auto;
+            width: 80%;
+            max-width: 400px;
+        }
+        
+        .btn-generate::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-generate:hover::before {
+            left: 100%;
+        }
+        
+        .btn-generate:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(255, 107, 107, 0.4);
+            background: linear-gradient(135deg, #ff5252 0%, #ff0000 100%);
+        }
+        
+        .btn-generate:active {
+            transform: translateY(-1px);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .result-section {
+            margin-top: 40px;
+            text-align: center;
+        }
+        
+        .result-image {
+            max-width: 100%;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            margin-top: 25px;
+            transition: var(--transition);
+        }
+        
+        .result-image:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .loading {
+            display: none;
+            margin-top: 30px;
+            color: var(--text-light);
+            font-size: 1.1em;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(99, 102, 241, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 15px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #ef4444;
+            margin-top: 20px;
+            padding: 16px 20px;
+            background-color: #fef2f2;
+            border-radius: 12px;
+            border-left: 4px solid #ef4444;
+            display: none;
+            font-size: 1em;
+        }
+        
+        .sample-text {
+            margin-top: 12px;
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        .sample-text button {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+        
+        .sample-text button:hover {
+            color: var(--secondary-color);
+        }
+        
+        .upload-section {
+            margin-bottom: 25px;
+            padding: 25px;
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            text-align: center;
+            transition: var(--transition);
+            background-color: var(--bg-light);
+        }
+        
+        .upload-section.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(99, 102, 241, 0.05);
+            transform: scale(1.02);
+        }
+        
+        .upload-preview {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .upload-preview img {
+            max-width: 250px;
+            max-height: 180px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .upload-info {
+            margin-top: 15px;
+            font-size: 14px;
+            color: var(--text-light);
+        }
+        
+        .color-mode {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .color-mode label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .color-mode input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .color-input-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .color-input-group input[type="color"] {
+            width: 60px;
+            height: 44px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .color-input-group input[type="text"] {
+            flex: 1;
+        }
+        
+        .color-help {
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--text-light);
+        }
+        
+        .feature-highlight {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .feature-highlight h3 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        
+        .feature-highlight p {
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+            
+            .header h1 {
+                font-size: 2.2em;
+            }
+            
+            .content {
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-cloud"></i> 词云图生成器</h1>
+            <p>输入词汇，选择形状或上传图片模板，生成精美的词云图</p>
+        </div>
+        
+        <div class="content">
+            <div class="feature-highlight">
+                <h3><i class="fas fa-star"></i> 功能特点</h3>
+                <p>支持多种形状模板（圆形、心形、星形等），可上传自定义图片，智能提取图片颜色，灵活调整尺寸和背景色，打造个性化词云图。</p>
+            </div>
+            
+            <div class="input-section">
+                <h2 class="section-title"><i class="fas fa-edit"></i> 输入内容</h2>
+                
+                <div class="form-group">
+                    <label for="text">输入词汇（用逗号分隔）</label>
+                    <textarea id="text" placeholder="例如：人工智能,机器学习,深度学习,神经网络,数据科学"></textarea>
+                    <div class="sample-text">
+                        <button id="loadSample"><i class="fas fa-magic"></i> 加载示例词汇</button>
+                    <div class="form-row">
+                    <div class="form-group">
+                        <label for="width"><i class="fas fa-arrows-alt-h"></i> 图片宽度</label>
+                        <input type="number" id="width" value="800" min="400" max="1200">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="height"><i class="fas fa-arrows-alt-v"></i> 图片高度</label>
+                        <input type="number" id="height" value="800" min="300" max="1200">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <button id="generateBtn" class="btn-generate"><i class="fas fa-cloud"></i> 生成词云图</button>
+                    </div>
+                </div>
+                </div>
+                
+                <h2 class="section-title"><i class="fas fa-cog"></i> 设置选项</h2>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="shape"><i class="fas fa-shapes"></i> 选择形状</label>
+                        <select id="shape">
+                            <option value="circle">圆形</option>
+                            <option value="rectangle">矩形</option>
+                            <option value="heart">心形</option>
+                            <option value="star">星形</option>
+                            <option value="triangle">三角形</option>
+                            <option value="hexagon">六边形</option>
+                            <option value="ellipse">椭圆形</option>
+                            <option value="diamond">菱形</option>
+                            <option value="pentagon">五边形</option>
+                            <option value="octagon">八边形</option>
+                            <option value="china_map">中国地图</option>
+                            <option value="shanghai_map">上海地图</option>
+                            <option value="custom">自定义图片</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="colorTheme"><i class="fas fa-palette"></i> 选择颜色主题</label>
+                        <select id="colorTheme">
+                            <option value="viridis">青绿色系</option>
+                            <option value="plasma">紫红色系</option>
+                            <option value="inferno">黄橙红色系</option>
+                            <option value="magma">紫红色系</option>
+                            <option value="cividis">黄绿色系</option>
+                            <option value="twilight">蓝紫色系</option>
+                            <option value="turbo">彩虹色系</option>
+                            <option value="Blues">蓝色系</option>
+                            <option value="Reds">红色系</option>
+                            <option value="Greens">绿色系</option>
+                            <option value="Purples">紫色系</option>
+                            <option value="Oranges">橙色系</option>
+                            <option value="cool">冷色调</option>
+                            <option value="warm">暖色调</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fontSelect"><i class="fas fa-font"></i> 选择字体</label>
+                        <select id="fontSelect">
+                            <option value="msyh">微软雅黑</option>
+                            <option value="simhei">黑体</option>
+                            <option value="simsun">宋体</option>
+                            <option value="simkai">楷体</option>
+                            <option value="simfang">仿宋</option>
+                            <option value="simli">隶书</option>
+                            <option value="simyou">幼圆</option>
+                            <option value="default">默认字体</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="background_color"><i class="fas fa-palette"></i> 背景颜色</label>
+                        <div class="color-input-group">
+                            <input type="color" id="bg_color_picker" value="#ffffff">
+                            <input type="text" id="background_color" value="white" placeholder="例如：white, #ffffff">
+                        </div>
+                        <div class="color-help">
+                            可以使用颜色选择器或输入颜色名称/十六进制值
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 图片上传区域 -->
+                <div class="upload-section" id="uploadSection" style="display: none;">
+                    <label for="imageUpload"><i class="fas fa-image"></i> 上传图片作为模板（支持JPG、PNG格式）</label>
+                    <input type="file" id="imageUpload" accept="image/jpeg,image/jpg,image/png" style="display: none;">
+                    <button id="uploadBtn" class="btn"><i class="fas fa-upload"></i> 选择图片</button>
+                    
+                    <div class="upload-preview" id="uploadPreview">
+                        <img id="previewImg" src="" alt="预览图">
+                        <div class="upload-info">
+                            <p id="imageName"></p>
+                            <p id="imageSize"></p>
+                        </div>
+                    </div>
+                    
+                    <div class="color-mode">
+                        <label>
+                            <input type="checkbox" id="useImageColors" checked>
+                            <i class="fas fa-eye-dropper"></i> 使用图片中的颜色作为词云配色
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="result-section">
+                <div id="loading" class="loading">
+                    <span class="loading-spinner"></span>
+                    正在生成词云图，请稍候...
+                </div>
+                <div id="error" class="error"></div>
+                <div id="result" style="display: none;">
+                    <img id="resultImage" class="result-image" alt="词云图">
+                    <div style="margin-top: 20px;">
+                        <button id="downloadBtn" class="btn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <i class="fas fa-download"></i> 下载词云图
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const textInput = document.getElementById('text');
+            const shapeSelect = document.getElementById('shape');
+            const fontSelect = document.getElementById('fontSelect');
+            const widthInput = document.getElementById('width');
+            const heightInput = document.getElementById('height');
+            const backgroundColorInput = document.getElementById('background_color');
+            const bgColorPicker = document.getElementById('bg_color_picker');
+            const generateBtn = document.getElementById('generateBtn');
+            const loadSampleBtn = document.getElementById('loadSample');
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const resultDiv = document.getElementById('result');
+            const resultImage = document.getElementById('resultImage');
+            const downloadBtn = document.getElementById('downloadBtn');
+            
+            // 图片上传相关元素
+            const uploadSection = document.getElementById('uploadSection');
+            const imageUpload = document.getElementById('imageUpload');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const uploadPreview = document.getElementById('uploadPreview');
+            const previewImg = document.getElementById('previewImg');
+            const imageName = document.getElementById('imageName');
+            const imageSize = document.getElementById('imageSize');
+            const useImageColors = document.getElementById('useImageColors');
+            
+            // 示例词汇
+            const sampleText = "人工智能,机器学习,深度学习,神经网络,数据科学,Python,Flask,Django,JavaScript,React,Vue,前端开发,后端开发,全栈开发,云计算,大数据,区块链,物联网,5G网络,智能家居,自然语言处理,计算机视觉,强化学习,数据挖掘,算法,模型,训练,预测,分析,可视化";
+            
+            // 存储上传的图片数据
+            let uploadedImageData = null;
+            
+            // 初始化字体选项
+            fetch('/fonts')
+                .then(response => response.json())
+                .then(fonts => {
+                    // 清空现有选项
+                    fontSelect.innerHTML = '';
+                    
+                    // 添加字体选项
+                    for (const [key, value] of Object.entries(fonts.fonts)) {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.textContent = value;
+                        fontSelect.appendChild(option);
+                    }
+                    
+                    // 设置默认选中微软雅黑
+                    fontSelect.value = 'msyh';
+                })
+                .catch(error => {
+                    console.error('Error loading fonts:', error);
+                });
+            
+            // 颜色选择器和文本输入框同步
+            bgColorPicker.addEventListener('change', function() {
+                backgroundColorInput.value = this.value;
+            });
+            
+            backgroundColorInput.addEventListener('input', function() {
+                // 尝试将文本输入转换为十六进制颜色
+                const color = this.value.trim();
+                if (color.startsWith('#')) {
+                    bgColorPicker.value = color;
+                } else if (color === 'white') {
+                    bgColorPicker.value = '#ffffff';
+                } else if (color === 'black') {
+                    bgColorPicker.value = '#000000';
+                } else if (color === 'red') {
+                    bgColorPicker.value = '#ff0000';
+                } else if (color === 'green') {
+                    bgColorPicker.value = '#00ff00';
+                } else if (color === 'blue') {
+                    bgColorPicker.value = '#0000ff';
+                } else if (color === 'yellow') {
+                    bgColorPicker.value = '#ffff00';
+                } else if (color === 'purple') {
+                    bgColorPicker.value = '#800080';
+                } else if (color === 'orange') {
+                    bgColorPicker.value = '#ffa500';
+                }
+            });
+            
+            // 加载示例词汇
+            loadSampleBtn.addEventListener('click', function() {
+                textInput.value = sampleText;
+            });
+            
+            // 形状选择变化时显示/隐藏上传区域
+            shapeSelect.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    uploadSection.style.display = 'block';
+                } else {
+                    uploadSection.style.display = 'none';
+                    uploadedImageData = null;
+                    uploadPreview.style.display = 'none';
+                }
+            });
+            
+            // 上传按钮点击事件
+            uploadBtn.addEventListener('click', function() {
+                imageUpload.click();
+            });
+            
+            // 图片选择事件
+            imageUpload.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    // 检查文件类型
+                    if (!file.type.match('image.*')) {
+                        showError('请选择图片文件（JPG或PNG格式）');
+                        return;
+                    }
+                    
+                    // 检查文件大小（限制为5MB）
+                    if (file.size > 5 * 1024 * 1024) {
+                        showError('图片文件大小不能超过5MB');
+                        return;
+                    }
+                    
+                    // 读取并显示图片
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        uploadedImageData = e.target.result;
+                        previewImg.src = uploadedImageData;
+                        imageName.textContent = `文件名: ${file.name}`;
+                        imageSize.textContent = `文件大小: ${(file.size / 1024).toFixed(2)} KB`;
+                        uploadPreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // 拖拽上传功能
+            uploadSection.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('dragover');
+            });
+            
+            uploadSection.addEventListener('dragleave', function() {
+                this.classList.remove('dragover');
+            });
+            
+            uploadSection.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    
+                    // 检查文件类型
+                    if (!file.type.match('image.*')) {
+                        showError('请选择图片文件（JPG或PNG格式）');
+                        return;
+                    }
+                    
+                    // 检查文件大小（限制为5MB）
+                    if (file.size > 5 * 1024 * 1024) {
+                        showError('图片文件大小不能超过5MB');
+                        return;
+                    }
+                    
+                    // 读取并显示图片
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        uploadedImageData = e.target.result;
+                        previewImg.src = uploadedImageData;
+                        imageName.textContent = `文件名: ${file.name}`;
+                        imageSize.textContent = `文件大小: ${(file.size / 1024).toFixed(2)} KB`;
+                        uploadPreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // 生成词云图
+            generateBtn.addEventListener('click', function() {
+                const text = textInput.value.trim();
+                
+                if (!text) {
+                    showError('请输入词汇内容');
+                    return;
+                }
+                
+                // 如果选择了自定义图片但没有上传图片
+                if (shapeSelect.value === 'custom' && !uploadedImageData) {
+                    showError('请上传自定义图片模板');
+                    return;
+                }
+                
+                // 显示加载状态
+                loadingDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+                resultDiv.style.display = 'none';
+                
+                // 准备请求数据
+                const data = {
+                    text: text,
+                    shape: shapeSelect.value,
+                    colorTheme: document.getElementById('colorTheme').value,
+                    font_name: fontSelect.value,
+                    width: parseInt(widthInput.value),
+                    height: parseInt(heightInput.value),
+                    background_color: backgroundColorInput.value,
+                    use_image_colors: useImageColors.checked
+                };
+                
+                // 如果有自定义图片，添加到请求数据
+                if (shapeSelect.value === 'custom' && uploadedImageData) {
+                    data.image_data = uploadedImageData;
+                }
+                
+                // 发送请求
+                fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadingDiv.style.display = 'none';
+                    
+                    if (data.success) {
+                        resultImage.src = data.image;
+                        resultDiv.style.display = 'block';
+                    } else {
+                        showError(data.error || '生成词云图时出错');
+                    }
+                })
+                .catch(error => {
+                    loadingDiv.style.display = 'none';
+                    showError('网络错误，请稍后重试');
+                    console.error('Error:', error);
+                });
+            });
+            
+            // 下载词云图
+            downloadBtn.addEventListener('click', function() {
+                // 创建一个临时链接元素
+                const link = document.createElement('a');
+                
+                // 获取当前日期和时间作为文件名
+                const now = new Date();
+                const timestamp = now.getFullYear() + 
+                                 ('0' + (now.getMonth() + 1)).slice(-2) + 
+                                 ('0' + now.getDate()).slice(-2) + '_' +
+                                 ('0' + now.getHours()).slice(-2) + 
+                                 ('0' + now.getMinutes()).slice(-2) + 
+                                 ('0' + now.getSeconds()).slice(-2);
+                
+                // 设置下载属性
+                link.href = resultImage.src;
+                link.download = `wordcloud_${timestamp}.png`;
+                
+                // 触发点击事件
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+            
+            // 显示错误信息
+            function showError(message) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

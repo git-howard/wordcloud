@@ -1,0 +1,4 @@
+Flask
+wordcloud
+numpy
+Pillow
